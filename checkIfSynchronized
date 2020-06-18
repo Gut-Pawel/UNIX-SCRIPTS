@@ -1,0 +1,103 @@
+#!/bin/bash
+
+targetHost=pawelgut@s52rakieta
+mainDirPath=/data
+raportCSV=/work/PAWEL/raports/raport_`date +"%Y%m%d"`_`date +"%H%M%S"`.csv
+
+echo "SCIEZKA,CZY_ISTNIEJE,CZY_TAKA_SAMA_WIELKOSC,ROZMIAR_PLIKU_LIKALNEGO,ROZMIAR_PLIKU_ZDALNEGO,WYNIK,HOST_LOKALNY,HOST_ZDALNY,DATA,CZAS" >> $raportCSV
+
+CSVGenerator() {
+#$1 -> path
+#$2 -> isExist [TAK / NIE]
+#$3 -> isSameSize [TAK / NIE / " "]
+#$4 -> localFileSize [X b]
+#$5 -> remoteFileSize [X b]
+#6 -> wynik [OK / ROZNY ROZMIAR / NIE ISTNIEJE ]
+#7 -> localHost 
+#8 -> targetHost
+#9 -> data
+#10 -> czas
+
+	localHost=`whoami`@`hostname`	
+
+	if [ "$2" = "TAK" ] 
+	then
+		if [ "$3" = "TAK" ]
+		then
+			echo "$1,$2,$3,$4,$5,OK",$localHost,$targetHost,`date +"%Y/%m/%d"`,`date +"%T"` >> $raportCSV
+		else
+			echo "$1,$2,$3,$4,$5,ROZNY ROZMIARY PLIKOW",$localHost,$targetHost,`date +"%Y/%m/%d"`,`date +"%T"`  >> $raportCSV 
+		fi
+	elif [ "$2" = "NIE" ]
+	then
+		echo "$1,$2,$3,$4,,PLIK NIE ISTNIEJE",$localHost,$targetHost,`date +"%Y/%m/%d"`,`date +"%T"`  >> $raportCSV
+	else
+		echo "$1,,,,,ERROR-NIEZNANY PLIK",$localHost,,,
+	fi
+}
+
+ComparesSizeOfFiles() {
+	localFileSize=`wc -c $tmpPath | awk '{print $1}'`
+	remoteFileSize=`ssh $targetHost wc -c $tmpPath | awk '{print $1}'`
+	
+	if [ "$localFileSize" -eq "$remoteFileSize" ];
+	then
+		numExistAndSameSizeFiles=$( echo $numExistAndSameSizeFiles +1 | bc )
+		echo "INFO:    [FILES HAVE THE SAME SIZE]"
+		CSVGenerator $tmpPath TAK TAK $localFileSize $remoteFileSize
+	else
+		echo "WARNING: [FILES DONT HAVE THE SAME SIZE]"	
+		CSVGenerator $tmpPath TAK NIE $localFileSize $remoteFileSize
+	fi
+}
+
+CheckIfFileExist() {
+	if ssh $targetHost stat "$1" \> /dev/null 2\>\&1
+	then
+		echo "INFO:   [FILE EXIST]" 
+		ComparesSizeOfFiles 
+	else
+		echo "WARNING:[REMOTE FILE NOT EXIST]"
+		localFileSize=`wc -c $tmpPath | awk '{print $1}'`
+		CSVGenerator $tmpPath NIE "" $localFileSize
+	fi	
+}
+
+SearchDir() {
+	SAVEIFS=$IFS
+	IFS=$(echo -en "\n\b")
+	
+	for i in $(ls -A $1)
+	do
+		cd -L "$1"
+		tmpPath="$1/$i"
+
+		if [ -L "$i" ] 
+		then 
+			echo "GO TO LINK DIR: $tmpPath"
+			SearchDir $tmpPath
+		elif [ -d "$i" ] 
+		then
+			echo "GO TO DIR: $tmpPath"
+			SearchDir $tmpPath
+		elif [ -f "$i" ] 
+		then	
+			echo "CHECK FILE: $tmpPath/$i"
+			numAllFiles=$( echo $numAllFiles + 1 | bc)
+			CheckIfFileExist $tmpPath
+			
+		else
+			echo "ERROR  $i" 
+			CSVGenerator $tmpPath 
+		fi
+	done	
+
+}
+
+numAllFiles=0
+numExistAndSameSizeFiles=0
+SearchDir $mainDirPath
+#mainDirPath=/work
+#SearchDir $mainDirPath
+echo "Number of files with same size: $numExistAndSameSizeFiles" 
+echo "Number of checked files: $numAllFiles"
