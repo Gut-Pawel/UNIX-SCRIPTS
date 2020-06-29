@@ -1,4 +1,4 @@
-# check-if-synchronized
+# CSV-GEN_checkIfSynchronized
 Bash script that checks if the files in the specified directory are synchronized.
 
 PL:
