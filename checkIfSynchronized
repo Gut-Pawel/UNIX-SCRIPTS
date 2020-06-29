@@ -1,10 +1,9 @@
 #!/bin/bash
 
-targetHost=pawelgut@s52rakieta
-mainDirPath=/data
-raportCSV=/work/PAWEL/raports/raport_`date +"%Y%m%d"`_`date +"%H%M%S"`.csv
+targetHost=sas@s52test2ap1n
+raportCSV=/sas/work/PAWEL/raports/raport_2ap2_2ap2n_`date +"%Y%m%d"`_`date +"%H%M%S"`.csv
 
-echo "SCIEZKA,CZY_ISTNIEJE,CZY_TAKA_SAMA_WIELKOSC,ROZMIAR_PLIKU_LIKALNEGO,ROZMIAR_PLIKU_ZDALNEGO,WYNIK,HOST_LOKALNY,HOST_ZDALNY,DATA,CZAS" >> $raportCSV
+echo "SCIEZKA,CZY_ISTNIEJE,CZY_TAKA_SAMA_WIELKOSC,ROZMIAR_PLIKU_LOKALNEGO,ROZMIAR_PLIKU_ZDALNEGO,WYNIK,HOST_LOKALNY,HOST_ZDALNY,DATA,CZAS" >> $raportCSV
 
 CSVGenerator() {
 #$1 -> path
@@ -37,8 +36,10 @@ CSVGenerator() {
 }
 
 ComparesSizeOfFiles() {
-	localFileSize=`wc -c $tmpPath | awk '{print $1}'`
-	remoteFileSize=`ssh $targetHost wc -c $tmpPath | awk '{print $1}'`
+      	tmpPath=`echo "$tmpPath" | sed 's/ /\\ /g'`
+	        
+	localFileSize=`wc -c "$tmpPath" | awk '{print $1}'`
+	remoteFileSize=`ssh $targetHost wc -c "'$tmpPath'" | awk '{print $1}'`
 	
 	if [ "$localFileSize" -eq "$remoteFileSize" ];
 	then
@@ -52,7 +53,9 @@ ComparesSizeOfFiles() {
 }
 
 CheckIfFileExist() {
-	if ssh $targetHost stat "$1" \> /dev/null 2\>\&1
+	#i=${i// /\ }
+
+	if ssh $targetHost stat "'$1'" \> /dev/null 2\>\&1
 	then
 		echo "INFO:   [FILE EXIST]" 
 		ComparesSizeOfFiles 
@@ -82,10 +85,9 @@ SearchDir() {
 			SearchDir $tmpPath
 		elif [ -f "$i" ] 
 		then	
-			echo "CHECK FILE: $tmpPath/$i"
+			echo "CHECK FILE: $tmpPath"
 			numAllFiles=$( echo $numAllFiles + 1 | bc)
-			CheckIfFileExist $tmpPath
-			
+			CheckIfFileExist "$tmpPath"
 		else
 			echo "ERROR  $i" 
 			CSVGenerator $tmpPath 
@@ -96,8 +98,11 @@ SearchDir() {
 
 numAllFiles=0
 numExistAndSameSizeFiles=0
-SearchDir $mainDirPath
-#mainDirPath=/work
-#SearchDir $mainDirPath
+for param in "$@"
+do
+	SearchDir $param
+done
+
 echo "Number of files with same size: $numExistAndSameSizeFiles" 
 echo "Number of checked files: $numAllFiles"
+
