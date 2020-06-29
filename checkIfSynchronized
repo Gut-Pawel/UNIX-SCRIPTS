@@ -1,7 +1,7 @@
 #!/bin/bash
 
-targetHost=sas@s52test2ap1n
-raportCSV=/sas/work/PAWEL/raports/raport_2ap2_2ap2n_`date +"%Y%m%d"`_`date +"%H%M%S"`.csv
+targetHost=user@serwer123
+raportCSV=/sas/work/PAWEL/raports/raport_`date +"%Y%m%d"`_`date +"%H%M%S"`.csv
 
 echo "SCIEZKA,CZY_ISTNIEJE,CZY_TAKA_SAMA_WIELKOSC,ROZMIAR_PLIKU_LOKALNEGO,ROZMIAR_PLIKU_ZDALNEGO,WYNIK,HOST_LOKALNY,HOST_ZDALNY,DATA,CZAS" >> $raportCSV
 
